@@ -551,11 +551,18 @@ async def dashboard_stats(user=Depends(get_current_user)):
     today_str = today.isoformat()
     today_attendance = [a for a in attendance if a.get("date") == today_str]
 
-    # last 6 months revenue
+    # last 6 months revenue (calendar-aware)
+    def _month_offset(base: date, k: int) -> date:
+        y = base.year
+        m = base.month - k
+        while m <= 0:
+            m += 12
+            y -= 1
+        return date(y, m, 1)
+
     rev_chart = []
     for i in range(5, -1, -1):
-        d = today.replace(day=1) - timedelta(days=i * 30)
-        d = d.replace(day=1)
+        d = _month_offset(today, i)
         ym = d.strftime("%Y-%m")
         amt = sum(p["amount"] for p in payments if p.get("status") == "PAID" and p.get("paidAt", "").startswith(ym))
         rev_chart.append({"month": d.strftime("%b"), "revenue": amt})
@@ -572,8 +579,7 @@ async def dashboard_stats(user=Depends(get_current_user)):
     # new members per month
     new_chart = []
     for i in range(5, -1, -1):
-        d = today.replace(day=1) - timedelta(days=i * 30)
-        d = d.replace(day=1)
+        d = _month_offset(today, i)
         ym = d.strftime("%Y-%m")
         cnt = sum(1 for m in members if m.get("joinDate", "").startswith(ym))
         new_chart.append({"month": d.strftime("%b"), "count": cnt})
